@@ -1,5 +1,0 @@
-LIBRARY LogManager
-EXPORTS
-Init
-GetLogManager
-GetErrSurvey
