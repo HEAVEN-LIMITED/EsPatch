@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\Shared\hde32\hde32.c">
+      <Filter>Source\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Shared\hook\PEHook.c">
+      <Filter>Source\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Shared\hook\InlineHook.c">
+      <Filter>Source\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Shared\hook\MemOp.c">
+      <Filter>Source\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Cfg.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Hook.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="EsPatchCore.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\dbgout.h">
+      <Filter>Header\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\hde32\hde32.h">
+      <Filter>Header\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Hook.h">
+      <Filter>Header\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\hook\InlineHook.h">
+      <Filter>Header\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\hook\PEHook.h">
+      <Filter>Header\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\hde32\table32.h">
+      <Filter>Header\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\VMP.h">
+      <Filter>Header\Util</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header">
+      <UniqueIdentifier>{c66c3847-8f39-4077-9540-45dc74b3f5d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{5466ed70-01c9-43a0-9e5d-20f5495f2439}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Util">
+      <UniqueIdentifier>{1aa3bef3-2c93-4222-a4cb-af3f4a3ce62f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header\Util">
+      <UniqueIdentifier>{486c1469-a91b-42cd-bdd8-64ccd20cfade}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Source.def" />
+  </ItemGroup>
+</Project>
