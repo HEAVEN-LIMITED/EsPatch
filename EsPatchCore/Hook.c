@@ -233,20 +233,6 @@ BOOL InitHooks()
 	OrigGetAdaptersInfo = GetProcAddress(hIphlpapi, "GetAdaptersInfo");
 	OrigGetAdaptersAddresses = GetProcAddress(hIphlpapi, "GetAdaptersAddresses");
 
-	//PEHOOK_HOOKTABLE *HT;
-	//OrigGetProcAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "GetProcAddress");
-	//if (!(HT = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(PEHOOK_HOOKTABLE) + sizeof(PEHOOK_FUNCTABLE) * 1)))
-	//	return FALSE;
-	/*
-	HT->FuncCount = 1;
-	HT->hModule = GetModuleHandle(NULL);
-	HT->targetLibName = "kernel32.dll";
-	HT->FuncTable[0].pFuncName = "GetProcAddress";
-	HT->FuncTable[0].pNewFunc = MyGetProcAddress;
-	*/
-	//PEHook_IATHook(HT);
-	//HeapFree(GetProcessHeap(), 0, HT);
-
 	INLINEHOOK_HOOKTABLE GpaHT[1];
 	GpaHT[0].func = GetProcAddress(GetModuleHandle("kernel32.dll"), "GetProcAddress");
 	GpaHT[0].proxy = (LPVOID)&MyGetProcAddress;

@@ -77,6 +77,6 @@ BOOL APIENTRY DllMain(HINSTANCE hMod, ULONG ulAct, PVOID p)
 	return TRUE;
 }
 
-DWORD WINAPI Dummy() {
-	return 0x13142B2B;
+void WINAPI Dummy() {
+	//do notning..
 }
