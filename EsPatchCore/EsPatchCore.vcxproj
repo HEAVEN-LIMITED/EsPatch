@@ -134,14 +134,15 @@
       <AdditionalOptions>/D _CRT_SECURE_NO_WARNINGS /D _WINSOCK_DEPRECATED_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>No</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <EntryPointSymbol>DllMain</EntryPointSymbol>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>Source.def</ModuleDefinitionFile>
       <EnableUAC>false</EnableUAC>
@@ -168,13 +169,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Shared\hde32\hde32.c" />
-    <ClCompile Include="..\Shared\hook\InlineHook.c" />
-    <ClCompile Include="..\Shared\hook\MemOp.c" />
-    <ClCompile Include="..\Shared\hook\PEHook.c" />
-    <ClCompile Include="Cfg.c" />
-    <ClCompile Include="Hook.c" />
-    <ClCompile Include="Main.c" />
+    <ClCompile Include="..\Shared\hde32\hde32.cpp" />
+    <ClCompile Include="..\Shared\hook\InlineHook.cpp" />
+    <ClCompile Include="..\Shared\hook\MemOp.cpp" />
+    <ClCompile Include="..\Shared\hook\PEHook.cpp" />
+    <ClCompile Include="Cfg.cpp" />
+    <ClCompile Include="Hook.cpp" />
+    <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Shared\dbgout.h" />
@@ -185,6 +186,8 @@
     <ClInclude Include="..\Shared\VMP.h" />
     <ClInclude Include="EsPatchCore.h" />
     <ClInclude Include="Hook.h" />
+    <ClInclude Include="lazy_imp.hpp" />
+    <ClInclude Include="lazy_imp_fix.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Source.def" />

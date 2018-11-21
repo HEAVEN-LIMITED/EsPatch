@@ -32,7 +32,7 @@ void killEsSvr() {
 void WINAPI InitEnv() {
 	VMP_BEGIN
 	DbgOut("InitEnv");
-	gIpData = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(IPDATA));
+	gIpData = (IPDATA*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(IPDATA));
 	if (!gIpData) {
 		DbgOut("HeapAlloc gIpData failed!");
 		goto _cleanup;
@@ -52,7 +52,7 @@ _cleanup:
 void initHostType() {
 	VMP_BEGIN
 	HMODULE hmHost;
-	hmHost = GetModuleHandle(NULL);
+	hmHost = GetModuleHandle((LPCSTR)NULL);
 	HostType = hmHost == GetModuleHandle("ESurfingClient.exe") ? 1 : hmHost == GetModuleHandle("ESurfingSvr.exe") ? 2 : 0;
 	VMP_END
 }
@@ -72,6 +72,7 @@ BOOL APIENTRY DllMain(HINSTANCE hMod, ULONG ulAct, PVOID p)
 	}
 	else if (ulAct == DLL_PROCESS_DETACH)
 	{
+		L("a");
 		ExitProcess(1);
 	}
 	return TRUE;

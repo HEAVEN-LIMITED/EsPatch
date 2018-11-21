@@ -7,9 +7,9 @@ BOOLEAN getCfgDir() {
 	VMP_BEGIN
 		if (cfgDir)
 			return TRUE;
-	if (!(cfgDir = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH)))
+	if (!(cfgDir =(char*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH)))
 		return FALSE;
-	if (!GetModuleFileName(GetModuleHandle(NULL), cfgDir, MAX_PATH)) {
+	if (!GetModuleFileName(GetModuleHandle((LPCSTR)NULL), cfgDir, MAX_PATH)) {
 		HeapFree(GetProcessHeap(), 0, cfgDir);
 		cfgDir = NULL;
 		return FALSE;
@@ -33,7 +33,7 @@ BOOLEAN cfgLoadFakeIp(IPDATA *p) {
 	}
 	DbgOut("portal.wlanuserip=%s", p->ipAddr);
 	p->ipAddrUL = inet_addr(p->ipAddr);
-	return p->ipAddrUL;
+	return !!p->ipAddrUL;
 	VMP_END
 }
 

@@ -31,6 +31,15 @@ _GetProcAddress OrigGetProcAddress;
 IPDATA *gIpData;
 BOOLEAN cfgLoadFakeIp(IPDATA *p);
 extern int HostType;
+INLINEHOOK_HOOKTABLE GpaHT[1];
+
+int fnStat[3] = {0,0,0};
+void UnhookGpa(int fn) {
+	if (fnStat[0] && fnStat[1] && fnStat[2]) {
+		InlineHook_CommitUnhook(GpaHT, sizeof(GpaHT));
+	}
+	if(fn>=0&&fn<=2) fnStat[fn] = 1;
+}
 
 ULONG WINAPI MyGetAdaptersInfo(PIP_ADAPTER_INFO AdapterInfo, PULONG SizePointer)
 {
@@ -61,7 +70,7 @@ ULONG WINAPI MyGetAdaptersAddresses(ULONG Family, ULONG Flags, PVOID Reserved, P
 			PIP_ADAPTER_GATEWAY_ADDRESS	pGw = p->FirstGatewayAddress;
 			while (pUa) {
 				if (pUa->Address.lpSockaddr->sa_family == AF_INET) {
-					struct sockaddr_in *sai = pUa->Address.lpSockaddr;
+					struct sockaddr_in *sai = (struct sockaddr_in *)pUa->Address.lpSockaddr;
 					DbgOut("Unicast: %08X -> %08X", sai->sin_addr.S_un.S_addr, gIpData->ipAddrUL);
 					sai->sin_addr.S_un.S_addr = gIpData->ipAddrUL;
 				}
@@ -89,20 +98,24 @@ ULONG WINAPI MyGetIpAddrTable(PMIB_IPADDRTABLE pIpAddrTable, PULONG pdwSize, BOO
 
 FARPROC WINAPI MyGetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
 	VMP_BEGIN
-	if (lpProcName>0xFFFF) {
+	if ((DWORD)lpProcName>0xFFFF) {
 		if (!lstrcmp(lpProcName, "GetIpAddrTable")) {
+			UnhookGpa(0);
 			DbgOut("GetIpAddrTable -> %08X", MyGetIpAddrTable);
-			return MyGetIpAddrTable;
+			return (FARPROC)MyGetIpAddrTable;
 		}
 		else if (!lstrcmp(lpProcName, "GetAdaptersAddresses")) {
+			UnhookGpa(1);
 			DbgOut("GetAdaptersAddresses -> %08X", MyGetAdaptersAddresses);
-			return MyGetAdaptersAddresses;
+			return (FARPROC)MyGetAdaptersAddresses;
 		}
 		else if (!lstrcmp(lpProcName, "GetAdaptersInfo")) {
+			UnhookGpa(2);
 			DbgOut("GetAdaptersInfo -> %08X", MyGetAdaptersInfo);
-			return MyGetAdaptersInfo;
+			return (FARPROC)MyGetAdaptersInfo;
 		}
 	}
+	UnhookGpa(-1);
 	return OrigGetProcAddress(hModule, lpProcName);
 	VMP_END
 }
@@ -147,7 +160,7 @@ int WINAPI MyIoctl(SOCKET s,
 		ErrCode);
 	if (dwIoControlCode == SIO_ADDRESS_LIST_QUERY) {
 		if (cfgLoadFakeIp(gIpData)) {
-			SOCKET_ADDRESS_LIST *pAddr = lpvOutBuffer;
+			SOCKET_ADDRESS_LIST *pAddr = (SOCKET_ADDRESS_LIST*)lpvOutBuffer;
 			for (int i = 0; i < pAddr->iAddressCount; i++)
 			{
 				DbgOut("Patched!!");
@@ -156,7 +169,7 @@ int WINAPI MyIoctl(SOCKET s,
 		}
 	}
 	else if (dwIoControlCode == SIO_ROUTING_INTERFACE_QUERY) {
-		SOCKADDR_IN *pIn = lpvInBuffer;
+		SOCKADDR_IN *pIn = (SOCKADDR_IN*)lpvInBuffer;
 		DbgOut("SIO_ROUTING_INTERFACE_QUERY");
 		DbgOut("in addr=%08X", pIn->sin_addr.S_un.S_addr);
 		if (cfgLoadFakeIp(gIpData)) {
@@ -182,9 +195,11 @@ int WSPAPI MyWSPStartup(
 	VMP_BEGIN
 	int r = OrigWSPStartup(wVersionRequested, lpWSPData, lpProtocolInfo, UpcallTable, lpProcTable);
 	if (!r) {
-		INLINEHOOK_HOOKTABLE HT[] = { { lpProcTable->lpWSPIoctl, (LPVOID)&MyIoctl, &OrigIoctl, 0 } };
+		OrigIoctl = (_Ioctl)lpProcTable->lpWSPIoctl;
+		lpProcTable->lpWSPIoctl = (LPWSPIOCTL)MyIoctl;
+		//INLINEHOOK_HOOKTABLE HT[] = { { lpProcTable->lpWSPIoctl, (LPVOID)&MyIoctl, &OrigIoctl, 0 } };
 		InlineHook_CommitUnhook(WspStartHT, sizeof(WspStartHT));
-		InlineHook_CommitHook(HT, sizeof(HT));
+		//InlineHook_CommitHook(HT, sizeof(HT));
 	}
 	return r;
 	VMP_END
@@ -220,20 +235,19 @@ _cleanup:
 	if (protoInfo)
 		HeapFree(GetProcessHeap(), 0, protoInfo);
 	WSACleanup();
-	return dwAddr;
+	return;
 	VMP_END
 }
 BOOL InitHooks()
 {
 	VMP_BEGIN
-	if (HostType != 2) return;
+	if (HostType != 2) return FALSE;
 	HMODULE hIphlpapi = LoadLibrary("iphlpapi.dll");
 
-	OrigGetIpAddrTable = GetProcAddress(hIphlpapi, "GetIpAddrTable");
-	OrigGetAdaptersInfo = GetProcAddress(hIphlpapi, "GetAdaptersInfo");
-	OrigGetAdaptersAddresses = GetProcAddress(hIphlpapi, "GetAdaptersAddresses");
+	OrigGetIpAddrTable = (_GetIpAddrTable)GetProcAddress(hIphlpapi, "GetIpAddrTable");
+	OrigGetAdaptersInfo = (_GetAdaptersInfo)GetProcAddress(hIphlpapi, "GetAdaptersInfo");
+	OrigGetAdaptersAddresses = (_GetAdaptersAddresses)GetProcAddress(hIphlpapi, "GetAdaptersAddresses");
 
-	INLINEHOOK_HOOKTABLE GpaHT[1];
 	GpaHT[0].func = GetProcAddress(GetModuleHandle("kernel32.dll"), "GetProcAddress");
 	GpaHT[0].proxy = (LPVOID)&MyGetProcAddress;
 	GpaHT[0].original = &OrigGetProcAddress;

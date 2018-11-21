@@ -11,5 +11,5 @@ typedef struct
 	DWORD length;
 } INLINEHOOK_HOOKTABLE;
 
-void CommitHook(INLINEHOOK_HOOKTABLE *HookTable, int sizeOfHookArray);
-void CommitUnhook(INLINEHOOK_HOOKTABLE *HookTable, int sizeOfHookArray);
+void InlineHook_CommitHook(INLINEHOOK_HOOKTABLE *HookTable, int sizeOfTable);
+void InlineHook_CommitUnhook(INLINEHOOK_HOOKTABLE *HookTable, int sizeOfTable);

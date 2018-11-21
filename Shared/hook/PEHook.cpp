@@ -30,8 +30,8 @@ void PEHook_IATHook(PEHOOK_HOOKTABLE *HookTable)
 		SIZE_T dwSize = sizeof(DWORD);
 		DWORD dwOldProtect = 0;
 		DWORD dwNewProtect = 0;
-		IMAGE_IMPORT_BY_NAME *pImpByName = pImageOrigThunkData->u1.AddressOfData;
-		DWORD *FuncAddr = (DWORD)&(pImageThunkData->u1.Function);
+		IMAGE_IMPORT_BY_NAME *pImpByName = (IMAGE_IMPORT_BY_NAME *)pImageOrigThunkData->u1.AddressOfData;
+		DWORD *FuncAddr = &(pImageThunkData->u1.Function);
 		char *funName = (CHAR*)((DWORD)hModule + pImpByName->Name);
 		if (!(pImageOrigThunkData->u1.Ordinal & IMAGE_ORDINAL_FLAG)) {
 			for (int i = 0; i < HookTable->FuncCount; i++) {
@@ -39,9 +39,9 @@ void PEHook_IATHook(PEHOOK_HOOKTABLE *HookTable)
 				if (!lstrcmp(funName, HookTable->FuncTable[i].pFuncName))
 				{
 					if (VirtualProtect(FuncAddr, dwSize, PAGE_READWRITE, &dwOldProtect)) {
-						HookTable->FuncTable[i].pOrigFunc = *FuncAddr;
+						HookTable->FuncTable[i].pOrigFunc = (PVOID)(*FuncAddr);
 						if(pNewFunc)
-							*FuncAddr = pNewFunc;
+							*FuncAddr = (DWORD)pNewFunc;
 						VirtualProtect(FuncAddr, dwSize, dwOldProtect, &dwNewProtect);
 					}
 					break;
