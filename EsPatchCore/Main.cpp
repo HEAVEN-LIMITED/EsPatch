@@ -1,5 +1,7 @@
 #include "EsPatchCore.h"
 #include "TlHelp32.h"
+#include "../Shared/hook/MinHook.h"
+
 
 BOOL InitHooks();
 extern IPDATA *gIpData;
@@ -45,7 +47,7 @@ void WINAPI InitEnv() {
 _cleanup:
 	if (gIpData)
 		HeapFree(GetProcessHeap(), 0, gIpData);
-	ExitProcess(0);
+//	ExitProcess(0);
 	VMP_END
 }
 
@@ -60,24 +62,27 @@ void initHostType() {
 BOOL APIENTRY DllMain(HINSTANCE hMod, ULONG ulAct, PVOID p)
 {
 	if (ulAct == DLL_PROCESS_ATTACH) {
+		OutputDebugStringA("test");
 		DbgOut("DLL_PROCESS_ATTACH dllEntry=%08X",DllMain);
 		initHostType();
 		if (HostType) {
 			if (HostType == 1) {
-				killEsSvr();
-				MessageBox(0, "构建日期：2018-09-11\n\n主页：https://4fk.me/proj-EsPatch\n邮箱：a@4fk.me", MSG_TITLE, MB_ICONINFORMATION);
+//				killEsSvr();
+				MessageBox(0, "Test构建日期：2022-04-5\n\n主页：https://4fk.me/proj-EsPatch\n邮箱：a@4fk.me", MSG_TITLE, MB_ICONINFORMATION);
 			}
-			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)InitEnv, NULL, NULL, NULL);
+    			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)InitEnv, NULL, NULL, NULL);
 		}
 	}
 	else if (ulAct == DLL_PROCESS_DETACH)
 	{
-		L("a");
-		ExitProcess(1);
+//	L("a");
+//		ExitProcess(1);
 	}
 	return TRUE;
 }
 
 void WINAPI Dummy() {
+
+	OutputDebugStringA("Dummy");
 	//do notning..
 }
