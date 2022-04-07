@@ -141,6 +141,7 @@
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

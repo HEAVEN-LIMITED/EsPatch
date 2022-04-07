@@ -31,6 +31,7 @@ void killEsSvr() {
 	VMP_END
 }
 
+
 void WINAPI InitEnv() {
 	VMP_BEGIN
 	DbgOut("InitEnv");
@@ -68,7 +69,7 @@ BOOL APIENTRY DllMain(HINSTANCE hMod, ULONG ulAct, PVOID p)
 		if (HostType) {
 			if (HostType == 1) {
 //				killEsSvr();
-				MessageBox(0, "Test构建日期：2022-04-5\n\n主页：https://4fk.me/proj-EsPatch\n邮箱：a@4fk.me", MSG_TITLE, MB_ICONINFORMATION);
+				MessageBox(0, "Version 22/04/07 \n\n主页：https://4fk.me/proj-EsPatch\n邮箱：a@4fk.me", MSG_TITLE, MB_ICONINFORMATION);
 			}
     			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)InitEnv, NULL, NULL, NULL);
 		}
@@ -76,7 +77,7 @@ BOOL APIENTRY DllMain(HINSTANCE hMod, ULONG ulAct, PVOID p)
 	else if (ulAct == DLL_PROCESS_DETACH)
 	{
 //	L("a");
-//		ExitProcess(1);
+		ExitProcess(1);
 	}
 	return TRUE;
 }

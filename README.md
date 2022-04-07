@@ -1,5 +1,5 @@
-# EsPatch
-# 1. 过 移动热点 检测功能
+# EsPatch 22/4/7 更新
+# 1. 过 移动热点 检测功能 (已修复崩溃，改为字符串替换方式)
  ```
 	DWORD required_size = 0;
 	for (i = 0; SetupDiEnumDeviceInfo(hDevInfo, i, &DeviceInfoData); i++)
@@ -19,6 +19,7 @@
      DoSomething();.....
 	}
  ```
-# 2. 过 路由器检测 (旧功能)
-# 3. 网卡选择 (还没做， 已经有初步原型 -> Hook GetBestInterfaceEX ， 可以实现验证流量转发) 更新: 只 hook 这两个玩意还不行 没时间搞了
-# 4. 虚拟环境 -> 补全 \REGISTRY\MACHINE\SYSTEM\ControlSet001\Control\Class\{GUID}\(index) -> NetCfgInstanceId (REG_SZ)
+# 2. 过 路由器检测 (旧功能)(已修复)
+# 3. ~~网卡选择~~ 改为代理客户端功能 -> 设置系统环境变量 cdc_custom_proxy -> http=127.0.0.1:10808
+# 4. 虚拟环境(请自己搞定，这里虚拟环境指Windows SandBox等特殊环境) -> 补全 \REGISTRY\MACHINE\SYSTEM\ControlSet001\Control\Class\{GUID}\(index) -> NetCfgInstanceId (REG_SZ)
+必须替换 zlib.dll 和 NetHelper.dll 来唤起程序

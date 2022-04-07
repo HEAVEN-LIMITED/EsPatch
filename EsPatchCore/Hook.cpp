@@ -10,6 +10,9 @@
 #include <winreg.h>
 #include <wtsapi32.h>
 #include <setupapi.h>
+#include <winhttp.h>
+#include <sstream>
+
 
 #pragma once
 
@@ -55,9 +58,17 @@ typedef DWORD(WINAPI* OldGetBestInterfaceEX)(struct sockaddr*, PDWORD);
 typedef DWORD(WINAPI* OldGetBestInterface)(IPAddr, PDWORD);
 typedef DWORD(WINAPI* OldWlanOpenHandle)(DWORD, PVOID, PDWORD, PHANDLE);
 typedef DWORD(WINAPI* OldWlanHostedNetworkStartUsing)(HANDLE, PWLAN_HOSTED_NETWORK_REASON, PVOID);
-typedef HRESULT (WINAPI* OldCoCreateInstance)( REFCLSID,  LPUNKNOWN ,  DWORD  , REFIID  , LPVOID* );
-typedef DWORD(WINAPI* OldWlanHostedNetworkQueryProperty)(HANDLE ,   WLAN_HOSTED_NETWORK_OPCODE , PDWORD,  PVOID*,    PWLAN_OPCODE_VALUE_TYPE  , PVOID );
-typedef LSTATUS (WINAPI* OldRegQueryValueExW)( HKEY hKey,LPCWSTR lpValueName,LPDWORD lpReserved,LPDWORD lpType, LPBYTE  lpData, LPDWORD lpcbData);
+typedef HRESULT(WINAPI* OldCoCreateInstance)(REFCLSID, LPUNKNOWN, DWORD, REFIID, LPVOID*);
+typedef DWORD(WINAPI* OldWlanHostedNetworkQueryProperty)(HANDLE, WLAN_HOSTED_NETWORK_OPCODE, PDWORD, PVOID*, PWLAN_OPCODE_VALUE_TYPE, PVOID);
+typedef LSTATUS(WINAPI* OldRegQueryValueExW)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE  lpData, LPDWORD lpcbData);
+typedef HINTERNET(WINAPI* OldWinHttpOpen)( LPCWSTR pszAgentW, DWORD   dwAccessType,  LPCWSTR pszProxyW, LPCWSTR pszProxyBypassW, DWORD   dwFlags);
+typedef BOOL(WINAPI* OldSetupDiGetDeviceRegistryPropertyW)(HDEVINFO  DeviceInfoSet, PSP_DEVINFO_DATA DeviceInfoData,
+         DWORD            Property,
+	     PDWORD           PropertyRegDataType,
+	     PBYTE            PropertyBuffer,
+	     DWORD            PropertyBufferSize,
+	     PDWORD           RequiredSize
+);
 
 OldGetBestInterfaceEX iGetBestInterfaceEX = NULL;
 OldGetBestInterface iGetBestInterface = NULL;
@@ -66,6 +77,8 @@ OldWlanHostedNetworkStartUsing iWlanHostedNetworkStartUsing = NULL;
 OldCoCreateInstance iCoCreateInstance = NULL;
 OldWlanHostedNetworkQueryProperty iWlanHostedNetworkQueryProperty = NULL;
 OldRegQueryValueExW iRegQueryValueExW;
+OldWinHttpOpen iWinHttpOpen;
+OldSetupDiGetDeviceRegistryPropertyW iSetupDiGetDeviceRegistryPropertyW;
 
 typedef struct _KEY_NAME_INFORMATION {
 	ULONG NameLength;
@@ -73,16 +86,37 @@ typedef struct _KEY_NAME_INFORMATION {
 } KEY_NAME_INFORMATION, * PKEY_NAME_INFORMATION;
 //NTSYSAPI NTSTATUS NTAPI NtQueryKey(IN HANDLE KeyHandle, IN DWORD KeyInformationClass, OUT PVOID KeyInformation, IN ULONG Length, OUT PULONG ResultLength);
 
+//From https://cloud.tencent.com/developer/article/1177239
 
-typedef BOOL(WINAPI* mySetupDiGetDeviceRegistryPropertyW)(
-	HDEVINFO         DeviceInfoSet,
-	PSP_DEVINFO_DATA DeviceInfoData,
-	DWORD            Property,
-	PDWORD           PropertyRegDataType,
-	PBYTE            PropertyBuffer,
-	DWORD            PropertyBufferSize,
-	PDWORD           RequiredSize
-	);
+std::string ws2s(const std::wstring& ws)
+{
+	std::string curLocale = setlocale(LC_ALL, NULL);     //curLocale="C"
+	setlocale(LC_ALL, "chs");
+	const wchar_t* wcs = ws.c_str();
+	size_t dByteNum = sizeof(wchar_t) * ws.size() + 1;
+
+	char* dest = new char[dByteNum];
+	wcstombs_s(NULL, dest, dByteNum, wcs, _TRUNCATE);
+	std::string result = dest;
+	delete[] dest;
+	setlocale(LC_ALL, curLocale.c_str());
+	return result;
+}
+
+std::wstring s2ws(const std::string& s)
+{
+	std::string curLocale = setlocale(LC_ALL, NULL);  //curLocale="C"
+	setlocale(LC_ALL, "chs");
+	const char* source = s.c_str();
+	size_t charNum = s.size() + 1;
+
+	wchar_t* dest = new wchar_t[charNum];
+	mbstowcs_s(NULL, dest, charNum, source, _TRUNCATE);
+	std::wstring result = dest;
+	delete[] dest;
+	setlocale(LC_ALL, curLocale.c_str());
+	return result;
+}
 
 typedef LONG NTSTATUS;
 
@@ -94,6 +128,22 @@ typedef LONG NTSTATUS;
 #define STATUS_BUFFER_TOO_SMALL ((NTSTATUS)0xC0000023L)
 #endif
 
+HINTERNET WINAPI myWinHttpOpen(LPCWSTR pszAgentW, DWORD   dwAccessType, LPCWSTR pszProxyW, LPCWSTR pszProxyBypassW, DWORD   dwFlags) {
+	OutputDebugStringW(pszAgentW);
+
+
+	wchar_t* custom_proxy;
+	custom_proxy = _wgetenv(L"cdc_custom_proxy");  //http=127.0.0.1:10808
+
+	if(custom_proxy)
+		return iWinHttpOpen(pszAgentW, WINHTTP_ACCESS_TYPE_NAMED_PROXY,
+			custom_proxy,
+			L"<local>", dwFlags);
+	else
+		return iWinHttpOpen(pszAgentW, dwAccessType,
+			pszProxyW,
+			pszProxyBypassW, dwFlags);
+}
 
 LPVOID VMTHookMethod(_In_ LPVOID lpVirtualTable, _In_ PVOID pHookMethod,
 	_In_opt_ uintptr_t dwOffset)
@@ -114,6 +164,7 @@ LPVOID VMTHookMethod(_In_ LPVOID lpVirtualTable, _In_ PVOID pHookMethod,
 	return (LPVOID)dwOrig;
 }
 
+//https://stackoverflow.com/questions/937044/determine-path-to-registry-key-from-hkey-handle-in-c
 std::wstring GetKeyPathFromKKEY(HKEY key)
 {
 	std::wstring keyPath;
@@ -171,7 +222,7 @@ LSTATUS WINAPI myRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpRese
 
 	auto ret = iRegQueryValueExW(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
 
-
+	//Assume this machine has this Key
 	if (ERROR_SUCCESS == ret)
 	{
 		if (lpValueName) {
@@ -187,8 +238,11 @@ LSTATUS WINAPI myRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpRese
 					/* Note that strncpy is unnecessary here since you know both the size
 					 * of the source and destination buffers
 					 */
-					wcscpy(linkCopy, reinterpret_cast<LPWSTR>(lpData));
-					GlobalS = linkCopy;
+
+					if (linkCopy) {
+						wcscpy(linkCopy, reinterpret_cast<LPWSTR>(lpData));
+						GlobalS = linkCopy;
+					}
 				}
 				else {
 					OutputDebugStringA("Returned first NetCfgInstanceId");
@@ -210,119 +264,54 @@ LSTATUS WINAPI myRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpRese
 
 DWORD WINAPI myWlanHostedNetworkQueryProperty(HANDLE hClientHandle, WLAN_HOSTED_NETWORK_OPCODE  OpCode, PDWORD pdwDataSize, PVOID* ppvData, PWLAN_OPCODE_VALUE_TYPE     pWlanOpcodeValueType, PVOID    pvReserved) {
 	OutputDebugStringA("myWlanHostedNetworkQueryProperty");
-	return iWlanHostedNetworkQueryProperty(hClientHandle, OpCode, pdwDataSize,ppvData,pWlanOpcodeValueType, pvReserved);
+	return iWlanHostedNetworkQueryProperty(hClientHandle, OpCode, pdwDataSize, ppvData, pWlanOpcodeValueType, pvReserved);
 }
 
-/*
-void doHook(INetSharingManager* pNSM) {
-	INetSharingEveryConnectionCollection* pNSECC = NULL;
-	HRESULT hr = pNSM->get_EnumEveryConnection(&pNSECC);
-	if (!pNSECC)
-		wprintf(L"failed to get EveryConnectionCollection!\r\n");
-	else {
-
-
-		// enumerate connections
-		IEnumVARIANT* pEV = NULL;
-		IUnknown* pUnk = NULL;
-		hr = pNSECC->get__NewEnum(&pUnk);
-		if (pUnk) {
-			hr = pUnk->QueryInterface(__uuidof(IEnumVARIANT),
-				(void**)&pEV);
-			pUnk->Release();
-		}
-		if (pEV) {
-			VARIANT v;
-			VariantInit(&v);
-			while (S_OK == pEV->Next(1, &v, NULL)) {
-				if (V_VT(&v) == VT_UNKNOWN) {
-					INetConnection* pNC = NULL;
-					V_UNKNOWN(&v)->QueryInterface(__uuidof(INetConnection),
-						(void**)&pNC);
-					if (pNC) {
-						INetConnectionProps* pNCP = NULL;
-						pNSM->get_NetConnectionProps(pNC, &pNCP);
-						if (!pNCP)
-							wprintf(L"failed to get NetConnectionProps!\r\n");
-						else
-						{
-							BSTR  strName, strDeviceName, strGuid;
-							NETCON_MEDIATYPE mediaType;
-							pNCP->get_Guid(&strGuid);
-							pNCP->get_Name(&strName);
-							pNCP->get_DeviceName(&strDeviceName);
-							pNCP->get_MediaType(&mediaType);
-
-								// check properties for firewalled or shared connection
-								DWORD dwCharacteristics = 0;
-								pNCP->get_Characteristics(&dwCharacteristics);
-
-								m_strPublicAdapterName = strDeviceName;
-
-								NETCON_MEDIATYPE MediaType = NCM_NONE;
-								pNCP->get_MediaType(&MediaType);
-								if ((MediaType != NCM_SHAREDACCESSHOST_LAN) &&
-									(MediaType != NCM_SHAREDACCESSHOST_RAS))
-								{
-									// got a shared/firewalled connection
-									INetSharingConfiguration* pNSC = NULL;
-									NETCON_STATUS Status;
-									pNCP->get_Status(&Status);
-
-									hr = pNSM->get_INetSharingConfigurationForINetConnection(pNC, &pNSC);
-									if (!pNSC)
-										wprintf(L"can't make INetSharingConfiguration object!\r\n");
-									else
-									{
-										pNSC->EnableSharing(ICSSHARINGTYPE_PUBLIC);
-										pNCP->get_Characteristics(&dwCharacteristics);
-										pNSC->Release();
-									}
-								}
-							
-							pNCP->Release();
-						}
-						pNC->Release();
-					}
-				}
-				VariantClear(&v);
-			}
-			pEV->Release();
-		}
-		pNSECC->Release();
-	}
-}
-*/
-
-
-
-typedef HRESULT (STDMETHODCALLTYPE* Oldget_EnumEveryConnection)(__RPC__in_opt INetConnection* pNetConnection, __RPC__deref_out_opt INetConnectionProps** ppProps);
-
-Oldget_EnumEveryConnection iget_EnumEveryConnection;
-
-HRESULT STDMETHODCALLTYPE myget_EnumEveryConnection(__RPC__in_opt INetConnection* pNetConnection, __RPC__deref_out_opt INetConnectionProps** ppProps) {
-//	OutputDebugStringA("hoooked");
-	auto ret= iget_EnumEveryConnection(pNetConnection, ppProps);
-
-	INetConnectionProps* pNCP = *ppProps;
-
-	if (pNCP) {
-		BSTR  strName, strDeviceName;
-		pNCP->get_Name(&strName);
-		pNCP->get_DeviceName(&strDeviceName);
-		OutputDebugStringW(strName);
-		OutputDebugStringW(strDeviceName);
-	}
-	return ret;
-}
-
-typedef BOOL (WINAPI* OldSetupDiEnumDeviceInfo)(HDEVINFO DeviceInfoSet, DWORD MemberIndex, PSP_DEVINFO_DATA DeviceInfoData);
+typedef BOOL(WINAPI* OldSetupDiEnumDeviceInfo)(HDEVINFO DeviceInfoSet, DWORD MemberIndex, PSP_DEVINFO_DATA DeviceInfoData);
 
 OldSetupDiEnumDeviceInfo iSetupDiEnumDeviceInfo;
 
 BOOL WINAPI mySetupDiEnumDeviceInfo(HDEVINFO DeviceInfoSet, DWORD MemberIndex, PSP_DEVINFO_DATA DeviceInfoData) {
-	OutputDebugStringA("Hooked SetupDiEnumDeviceInfo");
-	return false;
+	std::stringstream ss;
+	ss << "SetupDiEnumDevice" << MemberIndex;
+	OutputDebugStringA(ss.str().c_str());
+	ss.clear();
+
+	return iSetupDiEnumDeviceInfo(DeviceInfoSet, MemberIndex, DeviceInfoData);
+}
+
+BOOL WINAPI mySetupDiGetDeviceRegistryPropertyW(HDEVINFO  DeviceInfoSet, PSP_DEVINFO_DATA DeviceInfoData,
+	DWORD            Property,
+	PDWORD           PropertyRegDataType,
+	PBYTE            PropertyBuffer,
+	DWORD            PropertyBufferSize,
+	PDWORD           RequiredSize
+) {
+
+	// Property -> 0x000000016 (22)
+	// PropertyBuffer -> vwifimp
+
+	auto ret = iSetupDiGetDeviceRegistryPropertyW(DeviceInfoSet, DeviceInfoData, Property,
+		PropertyRegDataType,
+		PropertyBuffer,
+		PropertyBufferSize,
+		RequiredSize);
+
+	if (PropertyBuffer) {
+		std::stringstream ss;
+		ss << Property;
+		OutputDebugStringA(ss.str().c_str());
+		OutputDebugStringW((PWSTR)PropertyBuffer);
+
+		if (wcsstr((PWSTR)PropertyBuffer, L"vwifimp")) {
+			OutputDebugStringW(L"Net sharing Spoof.");
+			wcscpy((PWSTR)PropertyBuffer, L"ROOT");
+		}
+
+		ss.clear();
+	}
+
+	return ret;
 }
 
 HRESULT WINAPI myCoCreateInstance(REFCLSID  rclsid, LPUNKNOWN pUnkOuter, DWORD     dwClsContext, REFIID    riid, LPVOID* ppv) {
@@ -339,42 +328,23 @@ HRESULT WINAPI myCoCreateInstance(REFCLSID  rclsid, LPUNKNOWN pUnkOuter, DWORD  
 
 
 
-	/*
-
-		LPSTR lpszTitle = "test";
-		LPSTR lpszText = "Hooked";
-
-		DWORD dwSession = WTSGetActiveConsoleSessionId();
-		DWORD dwResponse;
-		WTSSendMessage(WTS_CURRENT_SERVER_HANDLE, dwSession, lpszTitle,
-			4,
-			lpszText, 6,
-			MB_YESNO | MB_ICONINFORMATION, 0, &dwResponse, TRUE);
-	*/
-
 	HRESULT ret = iCoCreateInstance(rclsid, pUnkOuter, dwClsContext, riid, ppv);
 
-		// 46C166AA-3108-11D4-9348-00C04F8EEB71     CLSID_HNetCfgMgr
-		// 46C166AB-3108-11D4-9348-00C04F8EEB71     CLSID_NetSharingManager
-		// 46C166AC-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumPublicConnection
-		// 46C166AD-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumPrivateConnection
-		// 46C166AE-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumApplicationDefinition
-		// 46C166AF-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumPortMapping
-		// 46C166B0-3108-11D4-9348-00C04F8EEB71     CLSID_NetSharingApplicationDefinition
-		// 46C166B1-3108-11D4-9348-00C04F8EEB71		CLSID_NetSharingConfiguration
-	
+	// Win com definition
+	// 46C166AA-3108-11D4-9348-00C04F8EEB71     CLSID_HNetCfgMgr
+	// 46C166AB-3108-11D4-9348-00C04F8EEB71     CLSID_NetSharingManager
+	// 46C166AC-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumPublicConnection
+	// 46C166AD-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumPrivateConnection
+	// 46C166AE-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumApplicationDefinition
+	// 46C166AF-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumPortMapping
+	// 46C166B0-3108-11D4-9348-00C04F8EEB71     CLSID_NetSharingApplicationDefinition
+	// 46C166B1-3108-11D4-9348-00C04F8EEB71		CLSID_NetSharingConfiguration
+
 	if (!strcmp(guid_string, "46c166ab-3108-11d4-9348-00c04f8eeb71")) {
 
-		
-
-		INetSharingManager* pNSM = reinterpret_cast<INetSharingManager*>(*ppv);
-
-		iget_EnumEveryConnection = reinterpret_cast<Oldget_EnumEveryConnection>(VMTHookMethod(pNSM, myget_EnumEveryConnection, 4));
-
-	//	pNSM->get_EnumEveryConnection = &myget_EnumEveryConnection;
 	}
 	else if (!strcmp(guid_string, "46c166aa-3108-11d4-9348-00c04f8eeb71")) {
-		
+
 	}
 
 
@@ -386,21 +356,31 @@ DWORD WINAPI myWlanHostedNetworkStartUsing(HANDLE  hClientHandle, PWLAN_HOSTED_N
 	return iWlanHostedNetworkStartUsing(hClientHandle, pFailReason, pvReserved);
 }
 
-DWORD WINAPI myWlanOpenHandle(DWORD dwClientVersion, PVOID pReserved, PDWORD pdwNegotiatedVersion, PHANDLE phClientHandle) 
+DWORD WINAPI myWlanOpenHandle(DWORD dwClientVersion, PVOID pReserved, PDWORD pdwNegotiatedVersion, PHANDLE phClientHandle)
 {
 	OutputDebugStringA("WlanOpenHandle");
 	return iWlanOpenHandle(dwClientVersion, pReserved, pdwNegotiatedVersion, phClientHandle);
 }
 
+bool isNumber(const std::string& str)
+{
+	for (char const& c : str) {
+		if (std::isdigit(c) == 0) return false;
+	}
+	return true;
+}
+
 DWORD WINAPI MyGetBestInterfaceEx(struct sockaddr* pDestAddr, PDWORD pdwBestIfIndex)
 {
 	DWORD ret = iGetBestInterfaceEX(pDestAddr, pdwBestIfIndex);
+
 	return ret;
 }
 
 DWORD WINAPI MyGetBestInterface(IPAddr IPin, PDWORD pdwBestIfIndex)
 {
 	DWORD ret = iGetBestInterface(IPin, pdwBestIfIndex);
+
 	return ret;
 }
 
@@ -484,30 +464,46 @@ FARPROC WINAPI MyGetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
 				UnhookGpa(2);
 				DbgOut("GetAdaptersInfo -> %08X", MyGetAdaptersInfo);
 				return (FARPROC)MyGetAdaptersInfo;
-			}else if (!lstrcmp(lpProcName, "GetBestInterfaceEx")) {
+			}
+			else if (!lstrcmp(lpProcName, "GetBestInterfaceEx")) {
 				OutputDebugStringA("GetBestInterfaceEx -> ");
 				return (FARPROC)MyGetBestInterfaceEx;
-			}else if (!lstrcmp(lpProcName, "GetBestInterface")) {
+			}
+			else if (!lstrcmp(lpProcName, "GetBestInterface")) {
 				OutputDebugStringA("GetBestInterface -> ");
 				return (FARPROC)MyGetBestInterface;
-			}else if (!lstrcmp(lpProcName, "WlanOpenHandle")) {
+			}
+			else if (!lstrcmp(lpProcName, "WlanOpenHandle")) {
 				OutputDebugStringA("WlanOpenHandle -> ");
 				return (FARPROC)myWlanOpenHandle;
-			}else if (!lstrcmp(lpProcName, "WlanHostedNetworkStartUsing")) {
+			}
+			else if (!lstrcmp(lpProcName, "WlanHostedNetworkStartUsing")) {
 				OutputDebugStringA("WlanHostedNetworkStartUsing -> ");
 				return (FARPROC)myWlanHostedNetworkStartUsing;
-			}else if (!lstrcmp(lpProcName, "CoCreateInstance")) {
+			}
+			else if (!lstrcmp(lpProcName, "CoCreateInstance")) {
 				OutputDebugStringA("CoCreateInstance -> ");
 				return (FARPROC)myCoCreateInstance;
-			}else if (!lstrcmp(lpProcName, "WlanHostedNetworkQueryProperty")) {
+			}
+			else if (!lstrcmp(lpProcName, "WlanHostedNetworkQueryProperty")) {
 				OutputDebugStringA("WlanHostedNetworkQueryProperty -> ");
 				return (FARPROC)myWlanHostedNetworkQueryProperty;
-			}else if (!lstrcmp(lpProcName, "RegQueryValueExW")) {
+			}
+			else if (!lstrcmp(lpProcName, "RegQueryValueExW")) {
 				OutputDebugStringA("RegQueryValueExW -> ");
 				return (FARPROC)myRegQueryValueExW;
-			}else if (!lstrcmp(lpProcName, "SetupDiEnumDeviceInfo")) {
+			}
+			else if (!lstrcmp(lpProcName, "SetupDiEnumDeviceInfo")) {
 				OutputDebugStringA("SetupDiEnumDeviceInfo -> ");
 				return (FARPROC)mySetupDiEnumDeviceInfo;
+
+			}else if (!lstrcmp(lpProcName, "SetupDiGetDeviceRegistryPropertyW")) {
+				OutputDebugStringA("SetupDiGetDeviceRegistryPropertyW -> ");
+				return (FARPROC)mySetupDiGetDeviceRegistryPropertyW;
+
+			}else if (!lstrcmp(lpProcName, "WinHttpOpen")) {
+				OutputDebugStringA("WinHttpOpen -> ");
+				return (FARPROC)myWinHttpOpen;
 
 
 			}
@@ -636,14 +632,30 @@ _cleanup:
 	VMP_END
 }
 
-typedef int(__cdecl* Oldwcsicmp)(const wchar_t*, const wchar_t*);
 
-Oldwcsicmp iWcsicmp = NULL;
+void tip() {
 
-int WINAPI Mywcsicmp(const wchar_t* in, const wchar_t* in2)
-{
-//	MessageBox(0, "22Test构建日期：2018-09-11\n\n主页：https://4fk.me/proj-EsPatch\n邮箱：a@4fk.me", "EsPatch by ChiL.", MB_ICONINFORMATION);
-	return iWcsicmp(in, in2);
+
+	wchar_t* custom_proxy;
+	custom_proxy = _wgetenv(L"cdc_custom_proxy");    //http=127.0.0.1:10808
+
+	if (!custom_proxy)
+		custom_proxy = L"not enabled";
+
+	wchar_t* lpszTitle = L"custom_proxy -> ";
+	char* lpszText = "Service injection succ";
+
+	std::wstringstream ss;
+	ss << lpszTitle << " " << custom_proxy;
+
+
+	DWORD dwSession = WTSGetActiveConsoleSessionId();
+	DWORD dwResponse;
+	WTSSendMessage(WTS_CURRENT_SERVER_HANDLE, dwSession, const_cast<char*>(ws2s(ss.str()).c_str()),
+		44,
+		lpszText, 46,
+		MB_YESNO | MB_ICONINFORMATION, 0, &dwResponse, TRUE);
+
 }
 
 
@@ -656,6 +668,7 @@ BOOL InitHooks()
 	HMODULE ole32 = LoadLibrary("ole32.dll");
 	HMODULE advapi32 = LoadLibrary("advapi32.dll");
 	HMODULE setupapi = LoadLibrary("setupapi.dll");
+	HMODULE WinHttpOpen = LoadLibrary("winhttp.dll");
 
 	OutputDebugStringA("Hook");
 
@@ -728,10 +741,26 @@ BOOL InitHooks()
 
 	InlineHook_CommitHook(GpaHT2, sizeof(GpaHT2));
 
+	GpaHT2[0].func = GetProcAddress(WinHttpOpen, "WinHttpOpen");
+	GpaHT2[0].proxy = (LPVOID)&myWinHttpOpen;
+	GpaHT2[0].original = &iWinHttpOpen;
+	GpaHT2[0].length = 0;
+
+
+	InlineHook_CommitHook(GpaHT2, sizeof(GpaHT2));
+
+	GpaHT2[0].func = GetProcAddress(setupapi, "SetupDiGetDeviceRegistryPropertyW");
+	GpaHT2[0].proxy = (LPVOID)&mySetupDiGetDeviceRegistryPropertyW;
+	GpaHT2[0].original = &iSetupDiGetDeviceRegistryPropertyW;
+	GpaHT2[0].length = 0;
+
+
+	InlineHook_CommitHook(GpaHT2, sizeof(GpaHT2));
 
 	//WlanHostedNetworkStartUsing
 
 		if (HostType != 2) return FALSE;
+
 
 
 	OrigGetIpAddrTable = (_GetIpAddrTable)GetProcAddress(hIphlpapi, "GetIpAddrTable");
@@ -744,6 +773,11 @@ BOOL InitHooks()
 	GpaHT[0].length = 0;
 	InlineHook_CommitHook(GpaHT, sizeof(GpaHT));
 	HookIoctl();
+
+
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)tip, NULL, NULL, NULL);
+
 	return TRUE;
 	VMP_END
 }
+
