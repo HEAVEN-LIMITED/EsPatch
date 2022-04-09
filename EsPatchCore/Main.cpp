@@ -69,7 +69,7 @@ BOOL APIENTRY DllMain(HINSTANCE hMod, ULONG ulAct, PVOID p)
 		if (HostType) {
 			if (HostType == 1) {
 //				killEsSvr();
-				MessageBox(0, "Version 22/04/07 \n\n÷˜“≥£∫https://4fk.me/proj-EsPatch\n” œ‰£∫a@4fk.me", MSG_TITLE, MB_ICONINFORMATION);
+//				MessageBox(0, "Version 22/04/07 \n\n÷˜“≥£∫https://4fk.me/proj-EsPatch\n” œ‰£∫a@4fk.me", MSG_TITLE, MB_ICONINFORMATION);
 			}
     			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)InitEnv, NULL, NULL, NULL);
 		}

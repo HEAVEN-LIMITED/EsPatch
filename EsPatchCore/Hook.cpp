@@ -213,51 +213,9 @@ static WCHAR* GlobalS = NULL;
 
 //RegQueryValueEx
 LSTATUS WINAPI myRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE  lpData, LPDWORD lpcbData) {
-	const char* p = "{B2CA9232-B462-430C-9653-4B91CAAB24F3}";
-	WCHAR* pwcsName;
-
-	int size = MultiByteToWideChar(CP_ACP, 0, p, -1, NULL, 0);
-	pwcsName = new WCHAR[50];
-	MultiByteToWideChar(CP_ACP, 0, p, -1, (LPWSTR)pwcsName, size);
 
 	auto ret = iRegQueryValueExW(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
 
-	//Assume this machine has this Key
-	if (ERROR_SUCCESS == ret)
-	{
-		if (lpValueName) {
-			OutputDebugStringW(GetKeyPathFromKKEY(hKey).c_str());
-			OutputDebugStringW(lpValueName);
-
-			if (wcsstr(lpValueName, L"NetCfgInstanceId") != 0) {
-
-				if (GlobalS == NULL) {
-					OutputDebugStringA("Init..");
-
-					wchar_t* linkCopy = (wchar_t*)malloc(wcslen(reinterpret_cast<LPWSTR>(lpData)) + 1);
-					/* Note that strncpy is unnecessary here since you know both the size
-					 * of the source and destination buffers
-					 */
-
-					if (linkCopy) {
-						wcscpy(linkCopy, reinterpret_cast<LPWSTR>(lpData));
-						GlobalS = linkCopy;
-					}
-				}
-				else {
-					OutputDebugStringA("Returned first NetCfgInstanceId");
-					OutputDebugStringW(GlobalS);
-
-					//	WCHAR* pwcsName2 = L"";
-
-					lpData = reinterpret_cast<BYTE*>(GlobalS);
-				}
-
-			}
-		}
-	}
-
-	delete[] pwcsName;
 
 	return ret;
 }
@@ -305,7 +263,7 @@ BOOL WINAPI mySetupDiGetDeviceRegistryPropertyW(HDEVINFO  DeviceInfoSet, PSP_DEV
 
 		if (wcsstr((PWSTR)PropertyBuffer, L"vwifimp")) {
 			OutputDebugStringW(L"Net sharing Spoof.");
-			wcscpy((PWSTR)PropertyBuffer, L"ROOT");
+			wcscpy((PWSTR)PropertyBuffer, L"PCI");
 		}
 
 		ss.clear();
@@ -315,6 +273,8 @@ BOOL WINAPI mySetupDiGetDeviceRegistryPropertyW(HDEVINFO  DeviceInfoSet, PSP_DEV
 }
 
 HRESULT WINAPI myCoCreateInstance(REFCLSID  rclsid, LPUNKNOWN pUnkOuter, DWORD     dwClsContext, REFIID    riid, LPVOID* ppv) {
+
+/*
 	GUID* guid = &(GUID)rclsid;
 	char guid_string[37];
 	snprintf(
@@ -325,7 +285,7 @@ HRESULT WINAPI myCoCreateInstance(REFCLSID  rclsid, LPUNKNOWN pUnkOuter, DWORD  
 		guid->Data4[3], guid->Data4[4], guid->Data4[5],
 		guid->Data4[6], guid->Data4[7]);
 	OutputDebugStringA(guid_string);
-
+*/
 
 
 	HRESULT ret = iCoCreateInstance(rclsid, pUnkOuter, dwClsContext, riid, ppv);
@@ -339,13 +299,6 @@ HRESULT WINAPI myCoCreateInstance(REFCLSID  rclsid, LPUNKNOWN pUnkOuter, DWORD  
 	// 46C166AF-3108-11D4-9348-00C04F8EEB71		CLSID_SharingManagerEnumPortMapping
 	// 46C166B0-3108-11D4-9348-00C04F8EEB71     CLSID_NetSharingApplicationDefinition
 	// 46C166B1-3108-11D4-9348-00C04F8EEB71		CLSID_NetSharingConfiguration
-
-	if (!strcmp(guid_string, "46c166ab-3108-11d4-9348-00c04f8eeb71")) {
-
-	}
-	else if (!strcmp(guid_string, "46c166aa-3108-11d4-9348-00c04f8eeb71")) {
-
-	}
 
 
 	return ret;
@@ -645,17 +598,25 @@ void tip() {
 	wchar_t* lpszTitle = L"custom_proxy -> ";
 	char* lpszText = "Service injection succ";
 
+	std::stringstream ss1;
+
+	ss1 << "Version 22/04/09 \n\n主页：https://4fk.me/proj-EsPatch\n邮箱：a@4fk.me\n" << lpszText << MSG_TITLE;
+
 	std::wstringstream ss;
 	ss << lpszTitle << " " << custom_proxy;
 
+	OutputDebugStringA(const_cast<char*>(ws2s(ss.str()).c_str()));
 
-	DWORD dwSession = WTSGetActiveConsoleSessionId();
-	DWORD dwResponse;
-	WTSSendMessage(WTS_CURRENT_SERVER_HANDLE, dwSession, const_cast<char*>(ws2s(ss.str()).c_str()),
-		44,
-		lpszText, 46,
-		MB_YESNO | MB_ICONINFORMATION, 0, &dwResponse, TRUE);
-
+	
+		DWORD dwSession = WTSGetActiveConsoleSessionId();
+		DWORD dwResponse;
+		WTSSendMessage(WTS_CURRENT_SERVER_HANDLE, dwSession, const_cast<char*>(ws2s(ss.str()).c_str()),
+			44,
+			const_cast<char*>(ss1.str().c_str()), 86,
+			MB_YESNO | MB_ICONINFORMATION, 0, &dwResponse, TRUE);
+	
+	ss.clear();
+	ss1.clear();
 }
 
 
