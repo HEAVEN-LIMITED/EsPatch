@@ -24,3 +24,4 @@
 ![](https://github.com/githuu5y5u/EsPatch/blob/master/%E4%BB%A3%E7%90%86%E5%AE%A2%E6%88%B7%E7%AB%AF.PNG?raw=true)
 # 4. 虚拟环境(请自己搞定，这里虚拟环境指Windows SandBox等特殊环境) -> 补全 \REGISTRY\MACHINE\SYSTEM\ControlSet001\Control\Class\{GUID}\(index) -> NetCfgInstanceId (REG_SZ)
 必须替换 zlib.dll 和 NetHelper.dll 来唤起程序
+本项目仅供学习研究
