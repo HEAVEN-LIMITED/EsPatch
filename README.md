@@ -1,4 +1,5 @@
 # EsPatch 22/4/7 更新
+(6/1 更新 : 目前新版本 Helper.zsm, PortalServer.zxm 更新后暂时失效 旧版本目前还是能用不过就是随机掉个线罢了)
 # 1. 过 移动热点 检测功能 (已修复崩溃，改为字符串替换方式)
  ```
 	DWORD required_size = 0;
