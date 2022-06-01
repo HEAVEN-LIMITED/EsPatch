@@ -355,6 +355,11 @@ ULONG WINAPI MyGetAdaptersInfo(PIP_ADAPTER_INFO AdapterInfo, PULONG SizePointer)
 		while (pAdapter) {
 			DbgOut("IpAddressList: %s -> %s", pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
 			lstrcpy(pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
+	
+	// 0601
+	//		DbgOut("GatewayList.IpAddress: %s -> %s", pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
+	//		lstrcpy(pAdapter->GatewayList.IpAddress.String, .....);
+			
 			pAdapter = pAdapter->Next;
 		}
 	}
