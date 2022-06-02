@@ -304,6 +304,8 @@ HRESULT WINAPI myCoCreateInstance(REFCLSID  rclsid, LPUNKNOWN pUnkOuter, DWORD  
 	return ret;
 }
 
+/TODO:: https://docs.microsoft.com/en-us/windows/win32/api/netcon/nf-netcon-inetsharingconfiguration-get_sharingenabled
+
 DWORD WINAPI myWlanHostedNetworkStartUsing(HANDLE  hClientHandle, PWLAN_HOSTED_NETWORK_REASON     pFailReason, PVOID    pvReserved) {
 	OutputDebugStringA("WlanHostedNetworkStartUsing");
 	return iWlanHostedNetworkStartUsing(hClientHandle, pFailReason, pvReserved);
