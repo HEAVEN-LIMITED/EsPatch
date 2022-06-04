@@ -1,5 +1,6 @@
 # EsPatch 22/4/7 更新
-# 1. 过 移动热点 检测功能 (已修复崩溃，改为字符串替换方式)
+(6/1 更新 : 目前新版本 Helper.zsm, PortalServer.zxm 更新后 1 暂时失效 旧版本目前还是能用 但是会掉线 新版本貌似添加了点奇怪的东西 建议拖到虚拟机(去虚拟化)里面跑)
+# 1. 过 移动热点 检测功能 (已修复崩溃，改为字符串替换方式) (新版本失效) 请自行编译
  ```
 	DWORD required_size = 0;
 	for (i = 0; SetupDiEnumDeviceInfo(hDevInfo, i, &DeviceInfoData); i++)

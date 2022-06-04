@@ -304,6 +304,8 @@ HRESULT WINAPI myCoCreateInstance(REFCLSID  rclsid, LPUNKNOWN pUnkOuter, DWORD  
 	return ret;
 }
 
+/TODO:: https://docs.microsoft.com/en-us/windows/win32/api/netcon/nf-netcon-inetsharingconfiguration-get_sharingenabled
+
 DWORD WINAPI myWlanHostedNetworkStartUsing(HANDLE  hClientHandle, PWLAN_HOSTED_NETWORK_REASON     pFailReason, PVOID    pvReserved) {
 	OutputDebugStringA("WlanHostedNetworkStartUsing");
 	return iWlanHostedNetworkStartUsing(hClientHandle, pFailReason, pvReserved);
@@ -355,6 +357,11 @@ ULONG WINAPI MyGetAdaptersInfo(PIP_ADAPTER_INFO AdapterInfo, PULONG SizePointer)
 		while (pAdapter) {
 			DbgOut("IpAddressList: %s -> %s", pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
 			lstrcpy(pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
+	
+	// 0601
+	//		DbgOut("GatewayList.IpAddress: %s -> %s", pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
+	//		lstrcpy(pAdapter->GatewayList.IpAddress.String, .....);
+			
 			pAdapter = pAdapter->Next;
 		}
 	}
