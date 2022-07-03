@@ -93,9 +93,9 @@ void InlineHook_CommitHook(INLINEHOOK_HOOKTABLE *HookTable, int sizeOfTable)
 void InlineHook_CommitUnhook(INLINEHOOK_HOOKTABLE *HookTable, int sizeOfTable)
 {
 	VMP_BEGIN
-	int i, NumEntries = sizeOfTable / sizeof(INLINEHOOK_HOOKTABLE);
-	for (i = 0; i < NumEntries; i++)
-		UnhookFunction(HookTable[i].func, *(LPVOID *)HookTable[i].original, HookTable[i].length);
-	VirtualFree(OriginalMemArea, 0, MEM_RELEASE);
+//	int i, NumEntries = sizeOfTable / sizeof(INLINEHOOK_HOOKTABLE);
+//	for (i = 0; i < NumEntries; i++)
+//		UnhookFunction(HookTable[i].func, *(LPVOID *)HookTable[i].original, HookTable[i].length);
+//	VirtualFree(OriginalMemArea, 0, MEM_RELEASE);
 	VMP_END
 }

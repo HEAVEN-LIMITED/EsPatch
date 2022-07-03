@@ -37,3 +37,18 @@ BOOLEAN cfgLoadFakeIp(IPDATA *p) {
 	VMP_END
 }
 
+BOOLEAN cfgLoadMyFakeGateWayIp(IPDATA* p) {
+	VMP_BEGIN
+		if (getCfgDir()) {
+			DbgOut("cfgDir=%s", cfgDir);
+			GetPrivateProfileString("portal", "myGateway", "0.0.0.0", p->ipAddr, 16, cfgDir);
+		}
+	if (p->ipAddr[0] == '\0') {
+		lstrcpy(p->ipAddr, "0.0.0.0");
+	}
+	DbgOut("portal.Gateway=%s", p->ipAddr);
+	p->ipAddrUL = inet_addr(p->ipAddr);
+	return !!p->ipAddrUL;
+	VMP_END
+}
+

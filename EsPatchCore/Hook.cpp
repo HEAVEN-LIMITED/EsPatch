@@ -1,4 +1,4 @@
-﻿
+﻿#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include "EsPatchCore.h"
 #include "Hook.h"
@@ -49,11 +49,17 @@ _GetProcAddress OrigGetProcAddress;
 
 IPDATA* gIpData;
 BOOLEAN cfgLoadFakeIp(IPDATA* p);
+BOOLEAN cfgLoadMyFakeGateWayIp(IPDATA* p);
 extern int HostType;
 INLINEHOOK_HOOKTABLE GpaHT[1];
 
 
-
+typedef u_short(WINAPI* Oldntohs)(
+	u_short netshort
+);
+typedef unsigned long (WINAPI* Oldinet_addr)(
+	const char* cp
+);
 typedef DWORD(WINAPI* OldGetBestInterfaceEX)(struct sockaddr*, PDWORD);
 typedef DWORD(WINAPI* OldGetBestInterface)(IPAddr, PDWORD);
 typedef DWORD(WINAPI* OldWlanOpenHandle)(DWORD, PVOID, PDWORD, PHANDLE);
@@ -62,6 +68,23 @@ typedef HRESULT(WINAPI* OldCoCreateInstance)(REFCLSID, LPUNKNOWN, DWORD, REFIID,
 typedef DWORD(WINAPI* OldWlanHostedNetworkQueryProperty)(HANDLE, WLAN_HOSTED_NETWORK_OPCODE, PDWORD, PVOID*, PWLAN_OPCODE_VALUE_TYPE, PVOID);
 typedef LSTATUS(WINAPI* OldRegQueryValueExW)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE  lpData, LPDWORD lpcbData);
 typedef HINTERNET(WINAPI* OldWinHttpOpen)( LPCWSTR pszAgentW, DWORD   dwAccessType,  LPCWSTR pszProxyW, LPCWSTR pszProxyBypassW, DWORD   dwFlags);
+typedef HINTERNET (WINAPI* OldWinHttpOpenRequest)(
+	HINTERNET hConnect,
+	LPCWSTR   pwszVerb,
+	LPCWSTR   pwszObjectName,
+	LPCWSTR   pwszVersion,
+	LPCWSTR   pwszReferrer,
+	LPCWSTR* ppwszAcceptTypes,
+	DWORD     dwFlags
+);
+typedef  HINTERNET(WINAPI* OldWinHttpConnect)(
+	HINTERNET     hSession,
+	LPCWSTR       pswzServerName,
+	INTERNET_PORT nServerPort,
+	DWORD         dwReserved
+);
+
+
 typedef BOOL(WINAPI* OldSetupDiGetDeviceRegistryPropertyW)(HDEVINFO  DeviceInfoSet, PSP_DEVINFO_DATA DeviceInfoData,
          DWORD            Property,
 	     PDWORD           PropertyRegDataType,
@@ -70,6 +93,9 @@ typedef BOOL(WINAPI* OldSetupDiGetDeviceRegistryPropertyW)(HDEVINFO  DeviceInfoS
 	     PDWORD           RequiredSize
 );
 
+OldWinHttpConnect iWinHttpConnect = NULL;
+Oldinet_addr iinet_addr = NULL;
+Oldntohs iNtosh = NULL;
 OldGetBestInterfaceEX iGetBestInterfaceEX = NULL;
 OldGetBestInterface iGetBestInterface = NULL;
 OldWlanOpenHandle iWlanOpenHandle = NULL;
@@ -78,6 +104,7 @@ OldCoCreateInstance iCoCreateInstance = NULL;
 OldWlanHostedNetworkQueryProperty iWlanHostedNetworkQueryProperty = NULL;
 OldRegQueryValueExW iRegQueryValueExW;
 OldWinHttpOpen iWinHttpOpen;
+OldWinHttpOpenRequest iWinHttpOpenRequest;
 OldSetupDiGetDeviceRegistryPropertyW iSetupDiGetDeviceRegistryPropertyW;
 
 typedef struct _KEY_NAME_INFORMATION {
@@ -127,6 +154,70 @@ typedef LONG NTSTATUS;
 #ifndef STATUS_BUFFER_TOO_SMALL
 #define STATUS_BUFFER_TOO_SMALL ((NTSTATUS)0xC0000023L)
 #endif
+
+
+int find_function_index(INetSharingConfiguration* p, void* f) {
+	for (int i = 0; i < 60; ++i) {
+		void* tmp = (void*)*((long*)*(int*)(p)+i);
+		if (tmp == f)
+			return i;
+	}
+	return -1;
+}
+
+
+static long count;
+
+HINTERNET WINAPI myWinHttpOpenRequest(
+	HINTERNET hConnect,
+	LPCWSTR   pwszVerb,
+	LPCWSTR   pwszObjectName,
+	LPCWSTR   pwszVersion,
+	LPCWSTR   pwszReferrer,
+	LPCWSTR* ppwszAcceptTypes,
+	DWORD     dwFlags
+) {
+
+	OutputDebugStringW(pwszObjectName);
+
+	if (wcsstr(pwszObjectName, L"/term.cgi"))
+		wcscpy((PWSTR)pwszObjectName, L"/");
+	else if (wcsstr(pwszObjectName, L"/auth.cgi")) {
+
+	}
+	else if (wcsstr(pwszObjectName, L"/keep.cgi")) {
+
+	}
+
+
+	OutputDebugStringW(pwszObjectName);
+	return iWinHttpOpenRequest(hConnect,
+		pwszVerb,
+		pwszObjectName,
+		pwszVersion,
+		pwszReferrer,
+		ppwszAcceptTypes,
+		dwFlags);
+}
+
+HINTERNET WINAPI myWinHttpConnect(
+	HINTERNET     hSession,
+	LPCWSTR       pswzServerName,
+	INTERNET_PORT nServerPort,
+	DWORD         dwReserved
+	) {
+
+	if (wcsstr(pswzServerName, L"14.146.227.141")) {
+		wcscpy((PWSTR)pswzServerName, L"121.8.177.212");
+	}else if (wcsstr(pswzServerName, L"14.146.227.142")) {
+		wcscpy((PWSTR)pswzServerName, L"121.8.177.213");
+	}
+
+	return iWinHttpConnect(hSession,
+		      pswzServerName,
+		      nServerPort,
+		      dwReserved);
+}
 
 HINTERNET WINAPI myWinHttpOpen(LPCWSTR pszAgentW, DWORD   dwAccessType, LPCWSTR pszProxyW, LPCWSTR pszProxyBypassW, DWORD   dwFlags) {
 	OutputDebugStringW(pszAgentW);
@@ -248,6 +339,7 @@ BOOL WINAPI mySetupDiGetDeviceRegistryPropertyW(HDEVINFO  DeviceInfoSet, PSP_DEV
 
 	// Property -> 0x000000016 (22)
 	// PropertyBuffer -> vwifimp
+	// netsetupengine.dll ?
 
 	auto ret = iSetupDiGetDeviceRegistryPropertyW(DeviceInfoSet, DeviceInfoData, Property,
 		PropertyRegDataType,
@@ -304,8 +396,6 @@ HRESULT WINAPI myCoCreateInstance(REFCLSID  rclsid, LPUNKNOWN pUnkOuter, DWORD  
 	return ret;
 }
 
-/TODO:: https://docs.microsoft.com/en-us/windows/win32/api/netcon/nf-netcon-inetsharingconfiguration-get_sharingenabled
-
 DWORD WINAPI myWlanHostedNetworkStartUsing(HANDLE  hClientHandle, PWLAN_HOSTED_NETWORK_REASON     pFailReason, PVOID    pvReserved) {
 	OutputDebugStringA("WlanHostedNetworkStartUsing");
 	return iWlanHostedNetworkStartUsing(hClientHandle, pFailReason, pvReserved);
@@ -347,6 +437,7 @@ void UnhookGpa(int fn) {
 	if (fn >= 0 && fn <= 2) fnStat[fn] = 1;
 }
 
+
 ULONG WINAPI MyGetAdaptersInfo(PIP_ADAPTER_INFO AdapterInfo, PULONG SizePointer)
 {
 	VMP_BEGIN
@@ -357,11 +448,12 @@ ULONG WINAPI MyGetAdaptersInfo(PIP_ADAPTER_INFO AdapterInfo, PULONG SizePointer)
 		while (pAdapter) {
 			DbgOut("IpAddressList: %s -> %s", pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
 			lstrcpy(pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
-	
-	// 0601
-	//		DbgOut("GatewayList.IpAddress: %s -> %s", pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
-	//		lstrcpy(pAdapter->GatewayList.IpAddress.String, .....);
-			
+
+			cfgLoadMyFakeGateWayIp(gIpData)
+			//First check 06/01
+			DbgOut("GatewayList.IpAddress: %s -> %s", pAdapter->IpAddressList.IpAddress.String, gIpData->ipAddr);
+			lstrcpy(pAdapter->GatewayList.IpAddress.String, gIpData->ipAddr);
+
 			pAdapter = pAdapter->Next;
 		}
 	}
@@ -464,6 +556,15 @@ FARPROC WINAPI MyGetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
 			}else if (!lstrcmp(lpProcName, "WinHttpOpen")) {
 				OutputDebugStringA("WinHttpOpen -> ");
 				return (FARPROC)myWinHttpOpen;
+
+			}else if (!lstrcmp(lpProcName, "WinHttpOpenRequest")) {
+				OutputDebugStringA("WinHttpOpenRequest -> ");
+				return (FARPROC)myWinHttpOpenRequest;
+
+
+			}else if (!lstrcmp(lpProcName, "WinHttpConnect")) {
+				OutputDebugStringA("WinHttpConnect -> ");
+				return (FARPROC)myWinHttpConnect;
 
 
 			}
@@ -637,6 +738,8 @@ BOOL InitHooks()
 	HMODULE advapi32 = LoadLibrary("advapi32.dll");
 	HMODULE setupapi = LoadLibrary("setupapi.dll");
 	HMODULE WinHttpOpen = LoadLibrary("winhttp.dll");
+	HMODULE Ws2_32 = LoadLibrary("ws2_32.dll");
+
 
 	OutputDebugStringA("Hook");
 
@@ -717,6 +820,14 @@ BOOL InitHooks()
 
 	InlineHook_CommitHook(GpaHT2, sizeof(GpaHT2));
 
+	GpaHT2[0].func = GetProcAddress(WinHttpOpen, "WinHttpOpenRequest");
+	GpaHT2[0].proxy = (LPVOID)&myWinHttpOpenRequest;
+	GpaHT2[0].original = &iWinHttpOpenRequest;
+	GpaHT2[0].length = 0;
+
+
+	InlineHook_CommitHook(GpaHT2, sizeof(GpaHT2));
+
 	GpaHT2[0].func = GetProcAddress(setupapi, "SetupDiGetDeviceRegistryPropertyW");
 	GpaHT2[0].proxy = (LPVOID)&mySetupDiGetDeviceRegistryPropertyW;
 	GpaHT2[0].original = &iSetupDiGetDeviceRegistryPropertyW;
@@ -725,7 +836,15 @@ BOOL InitHooks()
 
 	InlineHook_CommitHook(GpaHT2, sizeof(GpaHT2));
 
-	//WlanHostedNetworkStartUsing
+	GpaHT2[0].func = GetProcAddress(WinHttpOpen, "WinHttpConnect");
+	GpaHT2[0].proxy = (LPVOID)&myWinHttpConnect;
+	GpaHT2[0].original = &iWinHttpConnect;
+	GpaHT2[0].length = 0;
+
+
+	InlineHook_CommitHook(GpaHT2, sizeof(GpaHT2));
+
+
 
 		if (HostType != 2) return FALSE;
 
@@ -744,6 +863,8 @@ BOOL InitHooks()
 
 
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)tip, NULL, NULL, NULL);
+
+	// InitCon();
 
 	return TRUE;
 	VMP_END
